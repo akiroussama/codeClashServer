@@ -58,7 +58,12 @@ app.post('/update', (req, res) => {
 
   res.sendStatus(200);
 });
-
+app.post('/test-results', (req, res) => {
+  const { passed, failed } = req.body;
+  // Store the results in a database or process them as needed
+  console.log(`Received test results: ${passed} passed, ${failed} failed`);
+  res.send({ message: 'Results received' });
+});
 // New endpoint to fetch all file events
 app.get('/events', (req, res) => {
   db.all(`SELECT * FROM file_events`, [], (err, rows) => {
