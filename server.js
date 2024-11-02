@@ -10,7 +10,7 @@ const wss = new WebSocket.Server({ server });
 app.use(express.json());
 
 // Initialize SQLite database
-const db = new sqlite3.Database(':memory:'); // Use ':memory:' for an in-memory database or 'data.db' for a file-based database
+const db = new sqlite3.Database('data.db'); // Use a file-based database
 
 // Create a table to store file save events
 db.serialize(() => {
@@ -55,6 +55,17 @@ app.post('/update', (req, res) => {
   });
 
   res.sendStatus(200);
+});
+
+// New endpoint to fetch all file events
+app.get('/events', (req, res) => {
+  db.all(`SELECT * FROM file_events`, [], (err, rows) => {
+    if (err) {
+      res.status(500).send(err.message);
+      return;
+    }
+    res.json(rows);
+  });
 });
 
 // Start the server
