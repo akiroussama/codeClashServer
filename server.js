@@ -31,9 +31,9 @@ db.serialize(() => {
     date TEXT,
     passed INTEGER,
     failed INTEGER,
-    environment TEXT,  // New field
-    vscodeVersion TEXT, // New field
-    platform TEXT // New field
+    environment TEXT,  
+    vscodeVersion TEXT,
+    platform TEXT
   )`);
 });
 
