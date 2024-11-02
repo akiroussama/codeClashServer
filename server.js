@@ -23,6 +23,17 @@ db.serialize(() => {
   )`);
 });
 
+// Update the database schema to include username and date
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS test_results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT,
+    date TEXT,
+    passed INTEGER,
+    failed INTEGER
+  )`);
+});
+
 let clients = [];
 
 // Handle incoming WebSocket connections
@@ -58,15 +69,47 @@ app.post('/update', (req, res) => {
 
   res.sendStatus(200);
 });
+
+// Update the /test-results endpoint
 app.post('/test-results', (req, res) => {
-  const { passed, failed } = req.body;
-  // Store the results in a database or process them as needed
-  console.log(`Received test results: ${passed} passed, ${failed} failed`);
+  const { username, date, passed, failed } = req.body;
+  console.log(`Received test results from ${username} on ${date}: ${passed} passed, ${failed} failed`);
+
+  // Insert the test results into the database
+  db.run(`INSERT INTO test_results (username, date, passed, failed) VALUES (?, ?, ?, ?)`, [username, date, passed, failed], function(err) {
+    if (err) {
+      return console.error('Error inserting test results:', err.message);
+    }
+    console.log(`Test results inserted with rowid ${this.lastID}`);
+  });
+
   res.send({ message: 'Results received' });
 });
+
 // New endpoint to fetch all file events
 app.get('/events', (req, res) => {
   db.all(`SELECT * FROM file_events`, [], (err, rows) => {
+    if (err) {
+      res.status(500).send(err.message);
+      return;
+    }
+    res.json(rows);
+  });
+});
+
+// New endpoint to fetch the latest test result for each user
+app.get('/latest-test-results', (req, res) => {
+  const query = `
+    SELECT username, date, passed, failed
+    FROM test_results
+    WHERE id IN (
+      SELECT MAX(id)
+      FROM test_results
+      GROUP BY username
+    )
+  `;
+
+  db.all(query, [], (err, rows) => {
     if (err) {
       res.status(500).send(err.message);
       return;
