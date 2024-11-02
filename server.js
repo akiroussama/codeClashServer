@@ -2,12 +2,14 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const sqlite3 = require('sqlite3').verbose();
+const cors = require('cors'); // Import the cors package
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
+app.use(cors()); // Use the cors middleware
 
 // Initialize SQLite database
 const db = new sqlite3.Database('data.db'); // Use a file-based database
