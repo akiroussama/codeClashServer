@@ -105,7 +105,7 @@ app.get('/events', (req, res) => {
 // New endpoint to fetch the latest test result for each user
 app.get('/latest-test-results', (req, res) => {
   const query = `
-    SELECT username, date, passed, failed
+    SELECT username, date, passed, failed, environment, vscodeVersion, platform
     FROM test_results
     WHERE id IN (
       SELECT MAX(id)
