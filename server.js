@@ -30,7 +30,10 @@ db.serialize(() => {
     username TEXT,
     date TEXT,
     passed INTEGER,
-    failed INTEGER
+    failed INTEGER,
+    environment TEXT,  // New field
+    vscodeVersion TEXT, // New field
+    platform TEXT // New field
   )`);
 });
 
@@ -72,11 +75,13 @@ app.post('/update', (req, res) => {
 
 // Update the /test-results endpoint
 app.post('/test-results', (req, res) => {
-  const { username, date, passed, failed } = req.body;
-  console.log(`Received test results from ${username} on ${date}: ${passed} passed, ${failed} failed`);
+  const { data: { username, date, passed, failed }, timestamp, environment, vscodeVersion, platform } = req.body;
+  console.log(`Received test results from ${username} on ${date}: ${passed} passed, ${failed} failed at ${timestamp}`);
+  console.log(`Environment: ${environment}, VSCode Version: ${vscodeVersion}, Platform: ${platform}`);
 
-  // Insert the test results into the database
-  db.run(`INSERT INTO test_results (username, date, passed, failed) VALUES (?, ?, ?, ?)`, [username, date, passed, failed], function(err) {
+  // Insert the test results into the database with additional metadata
+  db.run(`INSERT INTO test_results (username, date, passed, failed, environment, vscodeVersion, platform) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+    [username, date, passed, failed, environment, vscodeVersion, platform], function(err) {
     if (err) {
       return console.error('Error inserting test results:', err.message);
     }
