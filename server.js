@@ -192,6 +192,47 @@ app.get('/latest-test-results', (req, res) => {
   });
 });
 
+// New endpoint to fetch latest test results grouped by user
+app.get('/latest-test-results-by-user', (req, res) => {
+  console.log('Fetching latest test results by user');
+  
+  // Subquery to get the latest timestamp for each user
+  const query = `
+    WITH LatestUserUpdates AS (
+      SELECT user, MAX(timestamp) as max_timestamp
+      FROM test_status_updates
+      GROUP BY user
+    )
+    SELECT t.*
+    FROM test_status_updates t
+    INNER JOIN LatestUserUpdates l
+      ON t.user = l.user AND t.timestamp = l.max_timestamp
+    ORDER BY t.timestamp DESC
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching latest test results by user:', err.message);
+      res.status(500).send({ error: 'Failed to fetch latest test results by user' });
+      return;
+    }
+
+    // Parse the JSON strings back to objects
+    const formattedRows = rows.map(row => ({
+      ...row,
+      test_status: JSON.parse(row.test_status),
+      project_info: JSON.parse(row.project_info),
+      git_info: JSON.parse(row.git_info),
+      test_runner_info: JSON.parse(row.test_runner_info),
+      environment: JSON.parse(row.environment),
+      execution: JSON.parse(row.execution)
+    }));
+
+    console.log(`Returning latest test results for ${formattedRows.length} users`);
+    res.json(formattedRows);
+  });
+});
+
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {
