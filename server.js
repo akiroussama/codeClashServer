@@ -25,11 +25,17 @@ db.serialize(() => {
 
 // Create a table to store test status updates
 db.serialize(() => {
+  db.run(`DROP TABLE IF EXISTS test_status_updates`);
   db.run(`CREATE TABLE IF NOT EXISTS test_status_updates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user TEXT,
     timestamp TEXT,
-    testStatus TEXT
+    test_status JSON,
+    project_info JSON,
+    git_info JSON,
+    test_runner_info JSON,
+    environment JSON,
+    execution JSON
   )`);
 });
 
@@ -100,18 +106,51 @@ app.get('/events', (req, res) => {
 
 // New endpoint to receive test status updates
 app.post('/test-status', (req, res) => {
-  const { user, timestamp, testStatus } = req.body;
-  console.log(`Received test status update from ${user} at ${timestamp}:`, testStatus);
+  const {
+    user,
+    timestamp,
+    testStatus,
+    projectInfo,
+    gitInfo,
+    testRunnerInfo,
+    environment,
+    execution
+  } = req.body;
 
-  // Insert the test status update into the database
-  db.run(`INSERT INTO test_status_updates (user, timestamp, testStatus) VALUES (?, ?, ?)`, [user, timestamp, testStatus], function(err) {
-    if (err) {
-      return console.error('Error inserting test status update:', err.message);
+  console.log(`Received test status update from ${user} at ${timestamp}`);
+
+  // Store the complex objects as JSON strings
+  db.run(
+    `INSERT INTO test_status_updates (
+      user,
+      timestamp,
+      test_status,
+      project_info,
+      git_info,
+      test_runner_info,
+      environment,
+      execution
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      user,
+      timestamp,
+      JSON.stringify(testStatus),
+      JSON.stringify(projectInfo),
+      JSON.stringify(gitInfo),
+      JSON.stringify(testRunnerInfo),
+      JSON.stringify(environment),
+      JSON.stringify(execution)
+    ],
+    function(err) {
+      if (err) {
+        console.error('Error inserting test status update:', err.message);
+        res.status(500).send({ error: 'Failed to store test status update' });
+        return;
+      }
+      console.log(`Test status update inserted with rowid ${this.lastID}`);
+      res.send({ message: 'Test status update received', id: this.lastID });
     }
-    console.log(`A test status update has been inserted with rowid ${this.lastID}`);
-  });
-
-  res.send({ message: 'Test status update received' });
+  );
 });
 
 // New endpoint to fetch all test status updates
