@@ -233,6 +233,74 @@ app.get('/latest-test-results-by-user', (req, res) => {
   });
 });
 
+app.get('/filtered-test-results', (req, res) => {
+  const { username, date, totalTests, failed, passed } = req.query;
+  console.log('Fetching filtered test results:', { username, date, totalTests, failed, passed });
+
+  let query = `
+    WITH LatestUserUpdates AS (
+      SELECT user, MAX(timestamp) as max_timestamp
+      FROM test_status_updates
+      WHERE 1=1
+  `;
+  const params = [];
+
+  if (username) {
+    query += ' AND user = ?';
+    params.push(username);
+  }
+
+  if (date) {
+    query += ' AND DATE(timestamp) = DATE(?)';
+    params.push(date);
+  }
+
+  query += `
+      GROUP BY user
+    )
+    SELECT t.*
+    FROM test_status_updates t
+    INNER JOIN LatestUserUpdates l
+      ON t.user = l.user AND t.timestamp = l.max_timestamp
+    ORDER BY t.timestamp DESC
+  `;
+
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      console.error('Error fetching filtered test results:', err.message);
+      res.status(500).send({ error: 'Failed to fetch filtered test results' });
+      return;
+    }
+
+    let filteredRows = rows.map(row => ({
+      ...row,
+      test_status: JSON.parse(row.test_status),
+      project_info: JSON.parse(row.project_info),
+      git_info: JSON.parse(row.git_info),
+      test_runner_info: JSON.parse(row.test_runner_info),
+      environment: JSON.parse(row.environment),
+      execution: JSON.parse(row.execution)
+    }));
+
+    // Additional filtering based on test counts
+    if (totalTests) {
+      filteredRows = filteredRows.filter(row => 
+        row.test_status.totalTests === parseInt(totalTests));
+    }
+    if (failed) {
+      filteredRows = filteredRows.filter(row => 
+        row.test_status.failed === parseInt(failed));
+    }
+    if (passed) {
+      filteredRows = filteredRows.filter(row => 
+        row.test_status.passed === parseInt(passed));
+    }
+
+    console.log(`Returning ${filteredRows.length} filtered test results`);
+    res.json(filteredRows);
+  });
+});
+
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {
