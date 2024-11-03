@@ -153,6 +153,32 @@ app.post('/test-status', (req, res) => {
   );
 });
 
+// New endpoint to get all test status updates
+app.get('/test-status', (req, res) => {
+  console.log('Fetching all test status updates');
+  db.all(`SELECT * FROM test_status_updates ORDER BY timestamp DESC`, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching test status updates:', err.message);
+      res.status(500).send({ error: 'Failed to fetch test status updates' });
+      return;
+    }
+    
+    // Parse the JSON strings back to objects
+    const formattedRows = rows.map(row => ({
+      ...row,
+      test_status: JSON.parse(row.test_status),
+      project_info: JSON.parse(row.project_info),
+      git_info: JSON.parse(row.git_info),
+      test_runner_info: JSON.parse(row.test_runner_info),
+      environment: JSON.parse(row.environment),
+      execution: JSON.parse(row.execution)
+    }));
+
+    console.log(`Returning ${formattedRows.length} test status updates`);
+    res.json(formattedRows);
+  });
+});
+
 // New endpoint to fetch all test status updates
 app.get('/latest-test-results', (req, res) => {
   console.log('Fetching latest test results');
