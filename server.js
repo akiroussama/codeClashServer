@@ -23,17 +23,13 @@ db.serialize(() => {
   )`);
 });
 
-// Update the database schema to include username and date
+// Create a table to store test status updates
 db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS test_results (
+  db.run(`CREATE TABLE IF NOT EXISTS test_status_updates (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    date TEXT,
-    passed INTEGER,
-    failed INTEGER,
-    environment TEXT,  
-    vscodeVersion TEXT,
-    platform TEXT
+    user TEXT,
+    timestamp TEXT,
+    testStatus TEXT
   )`);
 });
 
@@ -72,25 +68,25 @@ app.post('/update', (req, res) => {
 
   res.sendStatus(200);
 });
-
-// Update the /test-results endpoint
 app.post('/test-results', (req, res) => {
-  const { data: { username, date, passed, failed }, timestamp, environment, vscodeVersion, platform } = req.body;
-  console.log(`Received test results from ${username} on ${date}: ${passed} passed, ${failed} failed at ${timestamp}`);
-  console.log(`Environment: ${environment}, VSCode Version: ${vscodeVersion}, Platform: ${platform}`);
-
-  // Insert the test results into the database with additional metadata
-  db.run(`INSERT INTO test_results (username, date, passed, failed, environment, vscodeVersion, platform) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
-    [username, date, passed, failed, environment, vscodeVersion, platform], function(err) {
-    if (err) {
-      return console.error('Error inserting test results:', err.message);
-    }
-    console.log(`Test results inserted with rowid ${this.lastID}`);
-  });
-
+  const { passed, failed } = req.body;
+  // Store the results in a database or process them as needed
+  console.log(`Received test results: ${passed} passed, ${failed} failed`);
   res.send({ message: 'Results received' });
 });
 
+app.get('/test-results', (req, res) => {
+  console.log("Fetching test results");
+  console.log(req.body);
+  db.all(`SELECT * FROM test_status_updates`, [], (err, rows) => {
+    console.log("rows",rows);
+    if (err) {
+      res.status(500).send(err.message);
+      return;
+    }
+    res.json(rows);
+  });
+});
 // New endpoint to fetch all file events
 app.get('/events', (req, res) => {
   db.all(`SELECT * FROM file_events`, [], (err, rows) => {
@@ -102,19 +98,27 @@ app.get('/events', (req, res) => {
   });
 });
 
-// New endpoint to fetch the latest test result for each user
-app.get('/latest-test-results', (req, res) => {
-  const query = `
-    SELECT username, date, passed, failed, environment, vscodeVersion, platform
-    FROM test_results
-    WHERE id IN (
-      SELECT MAX(id)
-      FROM test_results
-      GROUP BY username
-    )
-  `;
+// New endpoint to receive test status updates
+app.post('/test-status', (req, res) => {
+  const { user, timestamp, testStatus } = req.body;
+  console.log(`Received test status update from ${user} at ${timestamp}:`, testStatus);
 
-  db.all(query, [], (err, rows) => {
+  // Insert the test status update into the database
+  db.run(`INSERT INTO test_status_updates (user, timestamp, testStatus) VALUES (?, ?, ?)`, [user, timestamp, testStatus], function(err) {
+    if (err) {
+      return console.error('Error inserting test status update:', err.message);
+    }
+    console.log(`A test status update has been inserted with rowid ${this.lastID}`);
+  });
+
+  res.send({ message: 'Test status update received' });
+});
+
+// New endpoint to fetch all test status updates
+app.get('/latest-test-results', (req, res) => {
+  console.log('Fetching latest test results');
+  db.all(`SELECT * FROM test_status_updates ORDER BY timestamp DESC LIMIT 1`, [], (err, rows) => {
+    console.log("rows",rows);
     if (err) {
       res.status(500).send(err.message);
       return;
