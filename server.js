@@ -117,6 +117,13 @@ app.post('/test-status', (req, res) => {
     execution
   } = req.body;
 
+  // Validate required fields
+  if (!user || !projectInfo || !testStatus || testStatus.total === 0) {
+    console.log('Invalid test status update - missing required fields or zero total tests');
+    res.status(400).send({ error: 'Missing required fields or zero total tests' });
+    return;
+  }
+
   console.log(`Received test status update from ${user} at ${timestamp}`);
 
   // Store the complex objects as JSON strings
@@ -241,7 +248,14 @@ app.get('/filtered-test-results', (req, res) => {
     WITH LatestUserUpdates AS (
       SELECT user, MAX(timestamp) as max_timestamp
       FROM test_status_updates
-      WHERE 1=1
+      WHERE user IS NOT NULL 
+      AND timestamp IS NOT NULL
+      AND test_status IS NOT NULL
+      AND project_info IS NOT NULL
+      AND git_info IS NOT NULL
+      AND test_runner_info IS NOT NULL
+      AND environment IS NOT NULL
+      AND execution IS NOT NULL
   `;
   const params = [];
 
@@ -262,6 +276,14 @@ app.get('/filtered-test-results', (req, res) => {
     FROM test_status_updates t
     INNER JOIN LatestUserUpdates l
       ON t.user = l.user AND t.timestamp = l.max_timestamp
+    WHERE t.user IS NOT NULL 
+    AND t.timestamp IS NOT NULL
+    AND t.test_status IS NOT NULL
+    AND t.project_info IS NOT NULL
+    AND t.git_info IS NOT NULL
+    AND t.test_runner_info IS NOT NULL
+    AND t.environment IS NOT NULL
+    AND t.execution IS NOT NULL
     ORDER BY t.timestamp DESC
   `;
 
@@ -272,15 +294,35 @@ app.get('/filtered-test-results', (req, res) => {
       return;
     }
 
-    let filteredRows = rows.map(row => ({
-      ...row,
-      test_status: JSON.parse(row.test_status),
-      project_info: JSON.parse(row.project_info),
-      git_info: JSON.parse(row.git_info),
-      test_runner_info: JSON.parse(row.test_runner_info),
-      environment: JSON.parse(row.environment),
-      execution: JSON.parse(row.execution)
-    }));
+    let filteredRows = rows.map(row => {
+      // Only include rows where JSON parsing succeeds and values exist
+      try {
+        const test_status = JSON.parse(row.test_status);
+        const project_info = JSON.parse(row.project_info);
+        const git_info = JSON.parse(row.git_info);
+        const test_runner_info = JSON.parse(row.test_runner_info);
+        const environment = JSON.parse(row.environment);
+        const execution = JSON.parse(row.execution);
+
+        // Check if parsed objects have required properties
+        if (!test_status || !project_info || !git_info || 
+            !test_runner_info || !environment || !execution) {
+          return null;
+        }
+
+        return {
+          ...row,
+          test_status,
+          project_info,
+          git_info,
+          test_runner_info,
+          environment,
+          execution
+        };
+      } catch (e) {
+        return null;
+      }
+    }).filter(row => row !== null); // Remove any null entries
 
     // Additional filtering based on test counts
     if (totalTests) {
