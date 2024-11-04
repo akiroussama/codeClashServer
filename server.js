@@ -244,6 +244,14 @@ app.get('/filtered-test-results', (req, res) => {
   const { username, date, totalTests, failed, passed } = req.query;
   console.log('Fetching filtered test results:', { username, date, totalTests, failed, passed });
 
+  // Check if all parameters are undefined
+  if (!username && !date && !totalTests && !failed && !passed) {
+    return res.status(404).json({ 
+      message: 'No filter parameters provided. Please specify at least one filter criteria.',
+      parameters: { username, date, totalTests, failed, passed }
+    });
+  }
+
   let query = `
     WITH LatestUserUpdates AS (
       SELECT user, MAX(timestamp) as max_timestamp
@@ -336,6 +344,13 @@ app.get('/filtered-test-results', (req, res) => {
     if (passed) {
       filteredRows = filteredRows.filter(row => 
         row.test_status.passed === parseInt(passed));
+    }
+
+    if (filteredRows.length === 0) {
+      return res.status(404).json({ 
+        message: 'No results found matching the specified criteria.',
+        parameters: { username, date, totalTests, failed, passed }
+      });
     }
 
     console.log(`Returning ${filteredRows.length} filtered test results`);
