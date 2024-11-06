@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors'); // Import the cors package
+const { Console } = require('console');
 
 const app = express();
 const server = http.createServer(app);
@@ -125,7 +126,9 @@ app.post('/test-status', (req, res) => {
   }
 
   console.log(`Received test status update from ${user} at ${timestamp}`);
-
+  console.log('Test Runner Info:', testRunnerInfo);
+  console.log('Project Info:', projectInfo);
+  console.log('Git Info:', gitInfo);
   // Store the complex objects as JSON strings
   db.run(
     `INSERT INTO test_status_updates (
@@ -242,7 +245,7 @@ app.get('/latest-test-results-by-user', (req, res) => {
 
 app.get('/filtered-test-results', (req, res) => {
   const { username, date, totalTests, failed, passed } = req.query;
-  console.log('Fetching filtered test results:', { username, date, totalTests, failed, passed });
+ 
 
   let query = `
     WITH LatestUserUpdates AS (
